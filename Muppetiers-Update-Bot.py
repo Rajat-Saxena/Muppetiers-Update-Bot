@@ -37,9 +37,13 @@ def bot_action(comment, comment_limit, reddit):
     comment.reply(response)
 
 
-reddit = praw.Reddit(client_id='KDNh11HA565-Yw', client_secret='vK2FYeYIE9jAauW5ChmfGLDoZDk', password='cU3r48r%',
+praw_client_id = os.environ['praw_client_id']
+praw_client_secret = os.environ['praw_client_secret']
+praw_password = os.environ['praw_password']
+praw_username = os.environ['praw_username']
+reddit = praw.Reddit(client_id=praw_client_id, client_secret=praw_client_secret, password=praw_password,
                user_agent='web:com.muppetiers-update-bot:v0.1 (by /u/rajatsaxena)',
-               username='MuppetiersUpdateBot')
+               username=praw_username)
 
 subreddit = reddit.subreddit('test')
 
