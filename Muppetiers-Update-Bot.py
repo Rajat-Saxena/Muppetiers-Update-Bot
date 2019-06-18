@@ -100,7 +100,7 @@ reddit = praw.Reddit(client_id=praw_client_id, client_secret=praw_client_secret,
 print('Logged on to Reddit')
 
 print('Starting comments stream')
-subreddit = reddit.subreddit('test')
+subreddit = reddit.subreddit('reddevils')
 for comment in subreddit.stream.comments():
     if check_condition(comment):
         last_comment_id, last_created_utc = get_last_comment(connection)
