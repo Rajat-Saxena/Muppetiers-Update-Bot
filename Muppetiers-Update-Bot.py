@@ -1,3 +1,4 @@
+import os
 import praw  # Python Reddit API Wrapper
 import datetime
 import pytz
@@ -41,6 +42,7 @@ praw_client_id = os.environ['praw_client_id']
 praw_client_secret = os.environ['praw_client_secret']
 praw_password = os.environ['praw_password']
 praw_username = os.environ['praw_username']
+
 reddit = praw.Reddit(client_id=praw_client_id, client_secret=praw_client_secret, password=praw_password,
                user_agent='web:com.muppetiers-update-bot:v0.1 (by /u/rajatsaxena)',
                username=praw_username)
