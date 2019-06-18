@@ -70,9 +70,9 @@ def bot_action(comment, comment_limit, reddit, connection):
 
                 save_last_comment(connection, comment)
 
-    response += '\n\n___________________________________________________\n' \
-                + '^Beep boop. I am a bot. If you have any feedback, contact my ' \
-                + '[^(Creator)](https://www.reddit.com/message/compose/?to=rajatsaxena&subject=Muppet-Bot)'
+    response += '\n\n---\n' \
+                + '^(Beep boop. I am a bot. If you have any feedback, contact my )' \
+                + '[^(Creator.)](https://www.reddit.com/message/compose/?to=rajatsaxena&subject=Muppet-Bot)'
     #print(response)
     comment.reply(response)
 
