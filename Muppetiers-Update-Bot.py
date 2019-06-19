@@ -9,30 +9,33 @@ def get_last_comment(connection):
     try:
         with connection.cursor() as cursor:
             # Read a single record
-            sql = "SELECT `comment_id`, `created_utc` FROM `muppet_bot_tbl`"
+            sql = "SELECT `comment_id`, `created_utc`, `sticky_comment_permalink`, `sticky_created_utc` FROM `muppet_bot_tbl`"
             cursor.execute(sql)
             result = cursor.fetchone()
             comment_id = result['comment_id']
             created_utc = result['created_utc']
+            sticky_comment_permalink = result['sticky_comment_permalink']
+            sticky_created_utc = result['sticky_created_utc']
             print('Last comment id: ' + comment_id + ' and last comment timestamp: ' + str(created_utc))
 
     except Exception as e:
         print('ERROR while reading last comment')
         print(e)
 
-    return comment_id, created_utc
+    return comment_id, created_utc, sticky_comment_permalink, sticky_created_utc
 
 
-def save_last_comment(connection, comment):
+def save_last_comment(connection, comment, sticky_permalink, sticky_created_utc):
     try:
         with connection.cursor() as cursor:
             # Create a new record
             sql = "UPDATE `muppet_bot_tbl` SET `comment_id` = '" + str(comment.id) + "', `created_utc` = '" + str(
-                comment.created_utc) + "'"
+                comment.created_utc) + "', `sticky_comment_permalink` = '" + str(sticky_permalink) \
+                  + "', `sticky_created_utc` = '" + str(sticky_created_utc) + "'"
             cursor.execute(sql)
 
         connection.commit()
-		
+
     except Exception as e:
         print('ERROR while saving last comment into database')
         print(e)
@@ -49,31 +52,37 @@ def check_condition(comment):
             return True
 
 
-def bot_action(comment, comment_limit, reddit, connection):
-    muppets = ['muppetiers']
+def bot_action(comment, comment_limit, reddit, connection, sticky_comment_permalink, sticky_created_utc):
     response = ''
-    bst = pytz.timezone('Europe/London')
-    for muppet in muppets:
-        response += '\n#Latest comments by ' + muppet + '\n'
-        i = 1
-        for c in reddit.redditor(muppet).comments.new(limit=comment_limit):
-            if c.subreddit.display_name == 'reddevils' and 'Transfer Muppets Thread' in c.link_title:
-                utc_posted_time = datetime.datetime.utcfromtimestamp(c.created_utc).astimezone(pytz.utc)
-                dttm_bst = utc_posted_time.astimezone(bst)
-                response += '\n##Comment ' + str(i) + '\n'
 
-                comm = str(c.body).replace('*', '').replace('#', '').replace('u/', 'u\\')
-                response += comm + '\n'
-                response += '\n^(Posted on ' + str((dttm_bst).strftime("%d-%m-%Y %H:%M")) + ' BST) '
-                response += '\n[^(link)](' + str(c.permalink) + ')'
-                i = i + 1
+    if comment.created_utc - float(sticky_created_utc) < 1800:
+        response = 'Someone has already summoned me in the last half an hour. You can find it [here](' + sticky_comment_permalink + ').'
+        save_last_comment(connection, comment, sticky_comment_permalink, sticky_created_utc)
 
-                save_last_comment(connection, comment)
+    else:
+        muppets = ['muppetiers']
+        bst = pytz.timezone('Europe/London')
+        for muppet in muppets:
+            response += '\n#Latest comments by ' + muppet + '\n'
+            i = 1
+            for c in reddit.redditor(muppet).comments.new(limit=comment_limit):
+                if c.subreddit.display_name == 'reddevils' and 'Transfer Muppets Thread' in c.link_title:
+                    utc_posted_time = datetime.datetime.utcfromtimestamp(c.created_utc).astimezone(pytz.utc)
+                    dttm_bst = utc_posted_time.astimezone(bst)
+                    response += '\n##Comment ' + str(i) + '\n'
+
+                    comm = str(c.body).replace('*', '').replace('#', '').replace('u/', 'u\\')
+                    response += comm + '\n'
+                    response += '\n^(Posted on ' + str((dttm_bst).strftime("%d-%m-%Y %H:%M")) + ' BST) '
+                    response += '\n[^(link)](' + str(c.permalink) + ')'
+                    i = i + 1
+
+                    save_last_comment(connection, comment, comment.permalink, comment.created_utc)
 
     response += '\n\n---\n' \
                 + '^(Beep boop. I am a bot. If you have any feedback, contact my )' \
                 + '[^(Creator.)](https://www.reddit.com/message/compose/?to=rajatsaxena&subject=Muppet-Bot)'
-    #print(response)
+    # print(response)
     comment.reply(response)
 
 
@@ -95,15 +104,17 @@ connection = pymysql.connect(host=os.environ['jawsdb_host'],
                              cursorclass=pymysql.cursors.DictCursor)
 
 reddit = praw.Reddit(client_id=praw_client_id, client_secret=praw_client_secret, password=praw_password,
-               user_agent='web:com.muppetiers-update-bot:v0.1 (by /u/rajatsaxena)',
-               username=praw_username)
+                     user_agent='web:com.muppetiers-update-bot:v0.1 (by /u/rajatsaxena)',
+                     username=praw_username)
 print('Logged on to Reddit')
 
 print('Starting comments stream')
 subreddit = reddit.subreddit('reddevils')
 for comment in subreddit.stream.comments():
     if check_condition(comment):
-        last_comment_id, last_created_utc = get_last_comment(connection)
+        last_comment_id, last_created_utc, sticky_comment_perm, sticky_created_utc = get_last_comment(connection)
         if comment.created_utc > last_created_utc:
-            print('Responding to comment_id: ' + comment.id + ' created: ' + str(comment.created_utc) + ' with body: ' + comment.body)
-            bot_action(comment, int(comment.body.split()[1]), reddit, connection)
+            print('Responding to comment_id: ' + comment.id + ' created: ' + str(
+                comment.created_utc) + ' with body: ' + comment.body)
+            bot_action(comment, int(comment.body.split()[1]), reddit, connection, sticky_comment_perm,
+                       sticky_created_utc)
